@@ -11,6 +11,7 @@ interface NavbarProps {
     id: string;
     username: string;
     email: string;
+    avatar?: string;
   } | null;
 }
 
@@ -19,7 +20,27 @@ export default function Navbar({ user }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const { cartCount } = useCart();
+
+  // Get user initials for avatar fallback
+  const getUserInitials = (username: string) => {
+    return username
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Get default avatar URL if user doesn't have one
+  const getAvatarUrl = () => {
+    if (user?.avatar) return user.avatar;
+    if (user?.username) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=0064D0&color=fff&size=128`;
+    }
+    return '';
+  };
 
   const handleLogout = async () => {
     await fetch('http://localhost:3001/api/logout', {
@@ -48,7 +69,7 @@ export default function Navbar({ user }: NavbarProps) {
                 <>
                   <span className="hidden sm:inline">Hi, {user.username}!</span>
                   <span className="sm:hidden">Hi!</span>
-                  <Link href="/" className="hover:underline hidden sm:inline">My eBay</Link>
+                  <Link href="/profile" className="hover:underline hidden sm:inline">My eBay</Link>
                 </>
               ) : (
                 <Link href="/login" className="hover:underline text-xs sm:text-sm">Hi! Sign in or register</Link>
@@ -114,21 +135,38 @@ export default function Navbar({ user }: NavbarProps) {
               <span className="text-2xl font-bold text-ebay-blue">eBay</span>
             </Link>
 
-            {/* Cart Icon */}
+            {/* Right side - Cart and Profile */}
             {user && (
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="p-2 hover:bg-gray-100 rounded relative"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-ebay-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </span>
-                )}
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="p-2 hover:bg-gray-100 rounded relative"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {cartCount > 0 && (
+                    <span className="absolute top-0 right-0 bg-ebay-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </span>
+                  )}
+                </button>
+                
+                {/* Mobile Profile Avatar */}
+                <Link href="/profile">
+                  {user.avatar || user.username ? (
+                    <img
+                      src={getAvatarUrl()}
+                      alt={user.username}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-300"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-ebay-blue text-white flex items-center justify-center font-semibold border-2 border-gray-300">
+                      {getUserInitials(user.username)}
+                    </div>
+                  )}
+                </Link>
+              </div>
             )}
           </div>
 
@@ -165,6 +203,7 @@ export default function Navbar({ user }: NavbarProps) {
               </form>
               {user && (
                 <div className="mt-4 space-y-2">
+                  <Link href="/profile" className="block py-2 text-gray-700 hover:text-ebay-blue">My Profile</Link>
                   <Link href="/saved" className="block py-2 text-gray-700 hover:text-ebay-blue">Saved</Link>
                   <Link href="/deals" className="block py-2 text-gray-700 hover:text-ebay-blue">Daily Deals</Link>
                   <Link href="/help" className="block py-2 text-gray-700 hover:text-ebay-blue">Help & Contact</Link>
@@ -219,6 +258,98 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link href="/saved" className="text-sm text-gray-700 hover:text-ebay-blue hidden lg:block">
                     Saved
                   </Link>
+                  
+                  {/* Profile Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      className="flex items-center space-x-2 focus:outline-none focus:ring-2 focus:ring-ebay-blue focus:ring-offset-2 rounded-full"
+                    >
+                      {user.avatar || user.username ? (
+                        <img
+                          src={getAvatarUrl()}
+                          alt={user.username}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-300 hover:border-ebay-blue transition-colors"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-ebay-blue text-white flex items-center justify-center font-semibold border-2 border-gray-300 hover:border-ebay-blue transition-colors">
+                          {getUserInitials(user.username)}
+                        </div>
+                      )}
+                      <svg
+                        className={`w-4 h-4 text-gray-600 transition-transform ${isProfileDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isProfileDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                          <div className="p-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-3">
+                              {user.avatar || user.username ? (
+                                <img
+                                  src={getAvatarUrl()}
+                                  alt={user.username}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-ebay-blue text-white flex items-center justify-center font-semibold">
+                                  {getUserInitials(user.username)}
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-semibold text-gray-900">{user.username}</p>
+                                <p className="text-sm text-gray-500">{user.email}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="py-2">
+                            <Link
+                              href="/profile"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              My Profile
+                            </Link>
+                            <Link
+                              href="/saved"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              Saved Items
+                            </Link>
+                            <Link
+                              href="/sell"
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              Sell
+                            </Link>
+                            <div className="border-t border-gray-200 my-2" />
+                            <button
+                              onClick={() => {
+                                setIsProfileDropdownOpen(false);
+                                handleLogout();
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              Sign out
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </div>

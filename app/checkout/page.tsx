@@ -111,30 +111,57 @@ export default function Checkout() {
     e.preventDefault();
     setProcessing(true);
 
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Store payment data (in a real app, this would be sent securely to a payment processor)
-    console.log('Payment Data:', paymentData);
-    console.log('Order Items:', cart);
-
-    // Clear cart after successful purchase
     try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Create order
+      const orderData = {
+        items: cart,
+        total: totalPrice,
+        tax: tax,
+        finalTotal: finalTotal,
+        paymentMethod: 'card',
+        shippingAddress: {
+          address: paymentData.billingAddress,
+          city: paymentData.city,
+          state: paymentData.state,
+          zipCode: paymentData.zipCode,
+          country: paymentData.country,
+        },
+      };
+
+      const orderResponse = await fetch('http://localhost:3001/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(orderData),
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      // Clear cart after successful purchase
       await clearCart();
       // Small delay to ensure state updates
       await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Show success
+      setOrderPlaced(true);
+      setProcessing(false);
+
+      // Redirect to home after 3 seconds
+      setTimeout(() => {
+        router.push('/');
+      }, 3000);
     } catch (error) {
-      console.error('Error clearing cart:', error);
+      console.error('Error processing order:', error);
+      setProcessing(false);
+      alert('There was an error processing your order. Please try again.');
     }
-
-    // Show success
-    setOrderPlaced(true);
-    setProcessing(false);
-
-    // Redirect to home after 3 seconds
-    setTimeout(() => {
-      router.push('/');
-    }, 3000);
   };
 
   const totalPrice = cart.reduce((sum, item) => sum + item.currentPrice, 0);

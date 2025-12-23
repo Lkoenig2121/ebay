@@ -33,6 +33,7 @@ interface User {
   username: string;
   password: string;
   email: string;
+  avatar?: string; // URL to avatar image
 }
 
 interface Bid {
@@ -42,6 +43,31 @@ interface Bid {
   username: string;
   amount: number;
   timestamp: Date;
+}
+
+interface Order {
+  id: string;
+  userId: string;
+  items: {
+    itemId: string;
+    title: string;
+    image: string;
+    price: number;
+    quantity: number;
+  }[];
+  total: number;
+  tax: number;
+  finalTotal: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  createdAt: Date;
+  paymentMethod: string;
+  shippingAddress: {
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
 }
 
 interface Item {
@@ -66,18 +92,21 @@ const users: User[] = [
     username: 'buyer1',
     password: bcrypt.hashSync('password123', 10),
     email: 'buyer1@example.com',
+    avatar: 'https://ui-avatars.com/api/?name=buyer1&background=0064D0&color=fff&size=128',
   },
   {
     id: '2',
     username: 'buyer2',
     password: bcrypt.hashSync('password123', 10),
     email: 'buyer2@example.com',
+    avatar: 'https://ui-avatars.com/api/?name=buyer2&background=0064D0&color=fff&size=128',
   },
   {
     id: '3',
     username: 'buyer3',
     password: bcrypt.hashSync('password123', 10),
     email: 'buyer3@example.com',
+    avatar: 'https://ui-avatars.com/api/?name=buyer3&background=0064D0&color=fff&size=128',
   },
 ];
 
@@ -671,6 +700,9 @@ const bids: Bid[] = [];
 // Cart storage: userId -> itemId[]
 const carts: Record<string, string[]> = {};
 
+// Orders storage
+const orders: Order[] = [];
+
 // Authentication middleware
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
@@ -721,6 +753,7 @@ app.post('/api/login', async (req, res) => {
       id: user.id,
       username: user.username,
       email: user.email,
+      avatar: user.avatar,
     },
   });
 });
@@ -739,6 +772,31 @@ app.get('/api/me', authenticateToken, (req, res) => {
     id: user.id,
     username: user.username,
     email: user.email,
+    avatar: user.avatar,
+  });
+});
+
+// Update user avatar
+app.put('/api/profile/avatar', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const { avatar } = req.body;
+
+  const user = users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  if (!avatar || typeof avatar !== 'string') {
+    return res.status(400).json({ error: 'Avatar URL is required' });
+  }
+
+  user.avatar = avatar;
+
+  res.json({
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    avatar: user.avatar,
   });
 });
 
@@ -973,6 +1031,147 @@ app.delete('/api/cart/clear', authenticateToken, (req, res) => {
   const userId = (req as any).user.userId;
   carts[userId] = [];
   res.json({ message: 'Cart cleared successfully' });
+});
+
+// Orders routes
+app.post('/api/orders', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const { items, total, tax, finalTotal, paymentMethod, shippingAddress } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Items are required' });
+  }
+
+  const order: Order = {
+    id: Date.now().toString(),
+    userId,
+    items: items.map((item: any) => ({
+      itemId: item.id,
+      title: item.title,
+      image: item.image,
+      price: item.currentPrice,
+      quantity: 1,
+    })),
+    total,
+    tax,
+    finalTotal,
+    status: 'completed',
+    createdAt: new Date(),
+    paymentMethod: paymentMethod || 'card',
+    shippingAddress: shippingAddress || {
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'United States',
+    },
+  };
+
+  orders.push(order);
+
+  // Clear cart after order is created
+  carts[userId] = [];
+
+  res.status(201).json(order);
+});
+
+app.get('/api/orders', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const userOrders = orders.filter(order => order.userId === userId);
+  res.json(userOrders);
+});
+
+app.get('/api/orders/:id', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const order = orders.find(o => o.id === req.params.id && o.userId === userId);
+  
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  
+  res.json(order);
+});
+
+// User profile routes - get purchases, sales, and bids
+app.get('/api/profile/purchases', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const userOrders = orders
+    .filter(order => order.userId === userId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  res.json(userOrders);
+});
+
+app.get('/api/profile/sales', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  
+  // Get all items sold by this user
+  const soldItems = items.filter(item => item.sellerId === userId);
+  
+  // Get orders that contain items sold by this user
+  const sales = orders
+    .filter(order => 
+      order.items.some(orderItem => 
+        soldItems.some(soldItem => soldItem.id === orderItem.itemId)
+      )
+    )
+    .map(order => ({
+      ...order,
+      items: order.items.filter(orderItem => 
+        soldItems.some(soldItem => soldItem.id === orderItem.itemId)
+      ),
+    }))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  
+  res.json(sales);
+});
+
+app.get('/api/profile/bids', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  const userBids = bids
+    .filter(bid => bid.userId === userId)
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .map(bid => {
+      const item = items.find(i => i.id === bid.itemId);
+      return {
+        ...bid,
+        item: item || null,
+      };
+    });
+  res.json(userBids);
+});
+
+app.get('/api/profile/won-auctions', authenticateToken, (req, res) => {
+  const userId = (req as any).user.userId;
+  
+  // Get all auction items that have ended
+  const endedAuctions = items.filter(
+    item => item.type === 'auction' && item.endTime && new Date() > item.endTime
+  );
+  
+  // Find auctions where user has the highest bid
+  const wonAuctions = endedAuctions
+    .filter(item => {
+      const itemBids = bids.filter(b => b.itemId === item.id);
+      if (itemBids.length === 0) return false;
+      
+      const highestBid = itemBids.reduce((max, bid) => 
+        bid.amount > max.amount ? bid : max
+      );
+      
+      return highestBid.userId === userId;
+    })
+    .map(item => {
+      const itemBids = bids.filter(b => b.itemId === item.id);
+      const userBids = itemBids.filter(b => b.userId === userId);
+      const userBid = userBids.reduce((max, bid) => bid.amount > max.amount ? bid : max, userBids[0]);
+      
+      return {
+        item,
+        winningBid: userBid,
+      };
+    });
+  
+  res.json(wonAuctions);
 });
 
 // Socket.io connection handling

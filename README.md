@@ -97,3 +97,8 @@ The application uses Socket.io to provide real-time updates:
 - JWT secret should be changed to a secure value in production.
 - CORS is configured for localhost:3000. Update for production deployment.
 
+
+
+
+
+
