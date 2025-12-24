@@ -75,6 +75,31 @@ export default function Profile() {
     checkAuth();
   }, []);
 
+  // Fetch watchlist count separately so it's always available for the tab count
+  const fetchWatchlistCount = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch('http://localhost:3001/api/saved', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWatchlist(data);
+      }
+    } catch (error) {
+      console.error('Error fetching watchlist count:', error);
+    }
+  };
+
+  // Fetch watchlist count when user loads (for tab count display)
+  useEffect(() => {
+    if (user) {
+      fetchWatchlistCount();
+    }
+  }, [user]);
+
+  // Fetch profile data when tab changes
   useEffect(() => {
     if (user) {
       fetchProfileData();
@@ -215,15 +240,8 @@ export default function Profile() {
           console.error('Failed to fetch won auctions:', response.status, response.statusText);
         }
       } else if (activeTab === 'watchlist') {
-        const response = await fetch('http://localhost:3001/api/saved', {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setWatchlist(data);
-        } else {
-          console.error('Failed to fetch watchlist:', response.status, response.statusText);
-        }
+        // Refresh watchlist when tab is active (already fetched on mount, but refresh for latest data)
+        await fetchWatchlistCount();
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
