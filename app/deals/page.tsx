@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
+import SaveButton from '@/components/SaveButton';
 
 interface Item {
   id: string;
@@ -72,11 +73,16 @@ export default function DailyDeals() {
               href={`/items/${item.id}`}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
             >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="w-full h-48 object-cover"
-              />
+              <div className="relative">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute top-2 right-2">
+                  <SaveButton itemId={item.id} />
+                </div>
+              </div>
               <div className="p-4">
                 <h3 className="text-lg font-semibold mb-2 line-clamp-2">{item.title}</h3>
                 <div className="flex items-center gap-2 mb-2">

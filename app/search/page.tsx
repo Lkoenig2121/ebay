@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { useCart } from '@/contexts/CartContext';
+import SaveButton from '@/components/SaveButton';
 
 interface Item {
   id: string;
@@ -233,6 +234,9 @@ export default function SearchPage() {
                         Buy It Now
                       </span>
                     )}
+                    <div className="absolute top-2 right-2">
+                      <SaveButton itemId={item.id} />
+                    </div>
                   </div>
                   <div className="p-3 sm:p-4">
                     <h3 className="text-lg sm:text-xl font-semibold mb-2 line-clamp-2">{item.title}</h3>

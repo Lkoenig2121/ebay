@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
+import SaveButton from '@/components/SaveButton';
 
 interface Order {
   id: string;
@@ -60,11 +61,12 @@ export default function Profile() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'bids' | 'won'>('purchases');
+  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'bids' | 'won' | 'watchlist'>('purchases');
   const [purchases, setPurchases] = useState<Order[]>([]);
   const [sales, setSales] = useState<Order[]>([]);
   const [bids, setBids] = useState<Bid[]>([]);
   const [wonAuctions, setWonAuctions] = useState<WonAuction[]>([]);
+  const [watchlist, setWatchlist] = useState<any[]>([]);
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [updatingAvatar, setUpdatingAvatar] = useState(false);
@@ -212,6 +214,16 @@ export default function Profile() {
         } else {
           console.error('Failed to fetch won auctions:', response.status, response.statusText);
         }
+      } else if (activeTab === 'watchlist') {
+        const response = await fetch('http://localhost:3001/api/saved', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWatchlist(data);
+        } else {
+          console.error('Failed to fetch watchlist:', response.status, response.statusText);
+        }
       }
     } catch (error) {
       console.error('Error fetching profile data:', error);
@@ -227,6 +239,23 @@ export default function Profile() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatTimeRemaining = (endTime: string | null) => {
+    if (!endTime) return null;
+    const now = new Date();
+    const end = new Date(endTime);
+    const diff = end.getTime() - now.getTime();
+
+    if (diff <= 0) return 'Ended';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   if (loading) {
@@ -386,6 +415,16 @@ export default function Profile() {
                   }`}
                 >
                   Won Auctions ({wonAuctions.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('watchlist')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'watchlist'
+                      ? 'border-ebay-blue text-ebay-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Watchlist ({watchlist.length})
                 </button>
               </nav>
             <button
@@ -702,6 +741,114 @@ export default function Profile() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'watchlist' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">My Watchlist</h2>
+              {watchlist.length === 0 ? (
+                <div className="text-center py-12">
+                  <svg
+                    className="w-16 h-16 mx-auto text-gray-400 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p className="text-gray-600 text-lg mb-4">Your watchlist is empty</p>
+                  <p className="text-gray-500 mb-6">
+                    Save items you're interested in by clicking the heart icon on any listing
+                  </p>
+                  <Link
+                    href="/"
+                    className="inline-block bg-ebay-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Browse Items
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                  {watchlist.map((item) => {
+                    const timeRemaining = formatTimeRemaining(item.endTime);
+                    const isAuction = item.type === 'auction';
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                      >
+                        <div className="relative">
+                          <Link href={`/items/${item.id}`}>
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="w-full h-40 sm:h-48 object-cover cursor-pointer"
+                            />
+                          </Link>
+                          {isAuction ? (
+                            <span className="absolute top-2 left-2 bg-ebay-red text-white px-2 py-1 rounded text-xs font-semibold">
+                              Auction
+                            </span>
+                          ) : (
+                            <span className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                              Buy It Now
+                            </span>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <SaveButton 
+                              itemId={item.id} 
+                              onToggle={() => fetchProfileData()}
+                            />
+                          </div>
+                        </div>
+                        <div className="p-3 sm:p-4">
+                          <Link href={`/items/${item.id}`}>
+                            <h3 className="text-lg sm:text-xl font-semibold mb-2 line-clamp-2 hover:text-ebay-blue cursor-pointer">
+                              {item.title}
+                            </h3>
+                          </Link>
+                          <p className="text-gray-600 text-xs sm:text-sm mb-3 line-clamp-2">{item.description}</p>
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-3">
+                            <div>
+                              <p className="text-xl sm:text-2xl font-bold text-ebay-red">${item.currentPrice}</p>
+                              {isAuction && (
+                                <p className="text-xs sm:text-sm text-gray-500">Starting: ${item.startingPrice}</p>
+                              )}
+                              {!isAuction && item.condition && (
+                                <p className="text-xs sm:text-sm text-gray-500">{item.condition}</p>
+                              )}
+                            </div>
+                            {isAuction && timeRemaining && (
+                              <div className="text-left sm:text-right">
+                                <p className="text-xs sm:text-sm font-medium text-gray-700">{timeRemaining}</p>
+                                <p className="text-xs text-gray-500">remaining</p>
+                              </div>
+                            )}
+                            {!isAuction && item.quantity !== undefined && (
+                              <div className="text-left sm:text-right">
+                                <p className="text-xs sm:text-sm font-medium text-gray-700">{item.quantity} available</p>
+                              </div>
+                            )}
+                          </div>
+                          <Link
+                            href={`/items/${item.id}`}
+                            className="block w-full bg-ebay-blue text-white py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center text-xs sm:text-sm"
+                          >
+                            View Item
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
