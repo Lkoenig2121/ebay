@@ -79,6 +79,19 @@ export default function Profile() {
     }
   }, [user, activeTab]);
 
+  // Refresh data when page becomes visible (user might have made a purchase in another tab)
+  useEffect(() => {
+    if (!user) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProfileData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, activeTab]);
+
   const checkAuth = async () => {
     try {
       const response = await fetch('http://localhost:3001/api/me', {
@@ -151,14 +164,23 @@ export default function Profile() {
   };
 
   const fetchProfileData = async () => {
+    if (!user) return;
+    
     try {
       if (activeTab === 'purchases') {
+        console.log('Fetching purchases for user:', user.id);
         const response = await fetch('http://localhost:3001/api/profile/purchases', {
           credentials: 'include',
         });
         if (response.ok) {
           const data = await response.json();
+          console.log('Fetched purchases response:', data);
+          console.log('Number of purchases:', data.length);
           setPurchases(data);
+        } else {
+          console.error('Failed to fetch purchases:', response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error details:', errorData);
         }
       } else if (activeTab === 'sales') {
         const response = await fetch('http://localhost:3001/api/profile/sales', {
@@ -167,6 +189,8 @@ export default function Profile() {
         if (response.ok) {
           const data = await response.json();
           setSales(data);
+        } else {
+          console.error('Failed to fetch sales:', response.status, response.statusText);
         }
       } else if (activeTab === 'bids') {
         const response = await fetch('http://localhost:3001/api/profile/bids', {
@@ -175,6 +199,8 @@ export default function Profile() {
         if (response.ok) {
           const data = await response.json();
           setBids(data);
+        } else {
+          console.error('Failed to fetch bids:', response.status, response.statusText);
         }
       } else if (activeTab === 'won') {
         const response = await fetch('http://localhost:3001/api/profile/won-auctions', {
@@ -183,6 +209,8 @@ export default function Profile() {
         if (response.ok) {
           const data = await response.json();
           setWonAuctions(data);
+        } else {
+          console.error('Failed to fetch won auctions:', response.status, response.statusText);
         }
       }
     } catch (error) {
@@ -317,48 +345,60 @@ export default function Profile() {
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('purchases')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'purchases'
-                    ? 'border-ebay-blue text-ebay-blue'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Purchases ({purchases.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('sales')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'sales'
-                    ? 'border-ebay-blue text-ebay-blue'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Sales ({sales.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('bids')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'bids'
-                    ? 'border-ebay-blue text-ebay-blue'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                My Bids ({bids.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('won')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'won'
-                    ? 'border-ebay-blue text-ebay-blue'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Won Auctions ({wonAuctions.length})
-              </button>
-            </nav>
+            <div className="flex items-center justify-between px-6 pt-4">
+              <nav className="flex -mb-px">
+                <button
+                  onClick={() => setActiveTab('purchases')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'purchases'
+                      ? 'border-ebay-blue text-ebay-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Purchases ({purchases.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('sales')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'sales'
+                      ? 'border-ebay-blue text-ebay-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Sales ({sales.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('bids')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'bids'
+                      ? 'border-ebay-blue text-ebay-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  My Bids ({bids.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('won')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'won'
+                      ? 'border-ebay-blue text-ebay-blue'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Won Auctions ({wonAuctions.length})
+                </button>
+              </nav>
+            <button
+              onClick={() => fetchProfileData()}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-ebay-blue hover:bg-gray-50 rounded-lg transition-colors flex items-center space-x-2"
+              title="Refresh data"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+            </div>
           </div>
         </div>
 
